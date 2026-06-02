@@ -16,6 +16,9 @@
           <router-link to="/orders" :class="{ active: $route.path === '/orders' }">
             {{ t('nav.orders') }}
           </router-link>
+          <router-link to="/restocking" :class="{ active: $route.path === '/restocking' }">
+            Restocking
+          </router-link>
           <router-link to="/spending" :class="{ active: $route.path === '/spending' }">
             {{ t('nav.finance') }}
           </router-link>
@@ -55,7 +58,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { api } from './api'
 import { useAuth } from './composables/useAuth'
 import { useI18n } from './composables/useI18n'
@@ -79,26 +82,15 @@ export default {
     const { t } = useI18n()
     const showProfileDetails = ref(false)
     const showTasks = ref(false)
-    const apiTasks = ref([])
-
-    // Merge mock tasks from currentUser with API tasks
     const tasks = computed(() => {
-      return [...currentUser.value.tasks, ...apiTasks.value]
+      return currentUser.value.tasks
     })
-
-    const loadTasks = async () => {
-      try {
-        apiTasks.value = await api.getTasks()
-      } catch (err) {
-        console.error('Failed to load tasks:', err)
-      }
-    }
 
     const addTask = async (taskData) => {
       try {
         const newTask = await api.createTask(taskData)
         // Add new task to the beginning of the array
-        apiTasks.value.unshift(newTask)
+        currentUser.value.tasks.unshift(newTask)
       } catch (err) {
         console.error('Failed to add task:', err)
       }
@@ -116,9 +108,7 @@ export default {
             currentUser.value.tasks.splice(index, 1)
           }
         } else {
-          // Remove from API tasks
           await api.deleteTask(taskId)
-          apiTasks.value = apiTasks.value.filter(t => t.id !== taskId)
         }
       } catch (err) {
         console.error('Failed to delete task:', err)
@@ -134,19 +124,12 @@ export default {
           // Toggle mock task status
           mockTask.status = mockTask.status === 'pending' ? 'completed' : 'pending'
         } else {
-          // Toggle API task
-          const updatedTask = await api.toggleTask(taskId)
-          const index = apiTasks.value.findIndex(t => t.id === taskId)
-          if (index !== -1) {
-            apiTasks.value[index] = updatedTask
-          }
+          await api.toggleTask(taskId)
         }
       } catch (err) {
         console.error('Failed to toggle task:', err)
       }
     }
-
-    onMounted(loadTasks)
 
     return {
       t,

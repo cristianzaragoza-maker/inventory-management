@@ -74,6 +74,64 @@
           </table>
         </div>
       </div>
+
+      <div v-if="restockingOrders.length > 0" class="restocking-section">
+        <div class="restocking-section-header">
+          <h3 class="restocking-section-title">Submitted Restocking Orders</h3>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card info">
+            <div class="stat-label">Submitted</div>
+            <div class="stat-value">{{ restockingOrders.length }}</div>
+            <div class="stat-sub">Total: {{ currencySymbol }}{{ restockingOrdersTotalValue.toLocaleString() }}</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Restocking Orders ({{ restockingOrders.length }})</h3>
+          </div>
+          <div class="table-container">
+            <table class="orders-table restocking-table">
+              <thead>
+                <tr>
+                  <th class="col-order-number">Order #</th>
+                  <th class="col-items">Items</th>
+                  <th class="col-status">Status</th>
+                  <th class="col-date">Order Date</th>
+                  <th class="col-date">Expected Delivery</th>
+                  <th class="col-value">Total Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="order in restockingOrders" :key="order.id">
+                  <td class="col-order-number"><strong>{{ order.order_number }}</strong></td>
+                  <td class="col-items">
+                    <details class="items-details">
+                      <summary class="items-summary">
+                        {{ order.items.length }} item{{ order.items.length !== 1 ? 's' : '' }}
+                      </summary>
+                      <div class="items-dropdown">
+                        <div v-for="item in order.items" :key="item.sku" class="item-entry">
+                          <span class="item-name">{{ item.name }}</span>
+                          <span class="item-meta">Qty: {{ item.quantity }} @ {{ currencySymbol }}{{ item.unit_cost }}</span>
+                        </div>
+                      </div>
+                    </details>
+                  </td>
+                  <td class="col-status">
+                    <span class="badge info">{{ order.status }}</span>
+                  </td>
+                  <td class="col-date">{{ formatDate(order.order_date) }}</td>
+                  <td class="col-date">{{ formatDate(order.expected_delivery) }}</td>
+                  <td class="col-value"><strong>{{ currencySymbol }}{{ order.total_value.toLocaleString() }}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -95,6 +153,7 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const orders = ref([])
+    const restockingOrders = ref([])
 
     // Use shared filters
     const {
@@ -153,13 +212,30 @@ export default {
       })
     }
 
-    onMounted(loadOrders)
+    const restockingOrdersTotalValue = computed(() => {
+      return restockingOrders.value.reduce((sum, order) => sum + (order.total_value || 0), 0)
+    })
+
+    const loadRestockingOrders = async () => {
+      try {
+        restockingOrders.value = await api.getRestockingOrders()
+      } catch (err) {
+        console.error('Failed to load restocking orders:', err)
+      }
+    }
+
+    onMounted(() => {
+      loadOrders()
+      loadRestockingOrders()
+    })
 
     return {
       t,
       loading,
       error,
       orders,
+      restockingOrders,
+      restockingOrdersTotalValue,
       getOrdersByStatus,
       getOrderStatusClass,
       formatDate,
@@ -275,5 +351,34 @@ export default {
 .item-meta {
   font-size: 0.813rem;
   color: #64748b;
+}
+
+/* Restocking section */
+.restocking-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #e2e8f0;
+}
+
+.restocking-section-header {
+  margin-bottom: 1.25rem;
+}
+
+.restocking-section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.stat-sub {
+  font-size: 0.813rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+.restocking-table {
+  table-layout: fixed;
+  width: 100%;
 }
 </style>
